@@ -31,7 +31,7 @@ const benefits = [
 
 const steps = [
   ['01', 'Join the game', 'Complete the official registration process.'],
-  ['02', 'Build your idea', 'Develop a solution according to the event requirements.'],
+  ['02', 'Build your idea', 'Develop a solution based on your own idea.'],
   ['03', 'Submit your project', 'Complete the official online submission process.'],
   ['04', 'Claim your moment', 'Await the judging outcome and celebrate the announced winners.'],
 ]
