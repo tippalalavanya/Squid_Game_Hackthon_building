@@ -37,10 +37,10 @@ const steps = [
 ]
 
 const faqs = [
-  ['Who can participate?', 'Eligibility details will be shared by the organizers through the official registration channel.'],
-  ['How do I register?', 'Use any Register or Enter the arena button on this page to begin your official registration journey.'],
-  ['What do I submit?', 'Build a project according to the event requirements and complete the official online submission process.'],
-  ['Will I receive a certificate?', 'Eligible participants can receive an online participation certificate according to the event rules.'],
+  ['Who can participate?', 'College students can participate in the hackathon.'],
+  ['How do I register?', 'Complete the official registration form to join the hackathon.'],
+  ['What do I submit?', 'Submit any good idea that solves a meaningful problem or creates something useful.'],
+  ['Will I receive a certificate?', 'All participants will get a certificate, and winners will receive an additional certificate and prize.'],
 ]
 
 export default function Page() {
@@ -109,7 +109,7 @@ export default function Page() {
         </div>
       </section>
 
-      <section id="experience" className="benefits section container"><div className="section-kicker">[ 02 / YOUR ADVANTAGE ]</div><div className="section-heading compact"><h2>MORE THAN<br /><span>A COMPETITION.</span></h2><p>Leave with more than a result.<br />Leave with momentum.</p></div><div className="benefit-grid">{benefits.map(({ number, icon: Icon, title, body }) => <article className="benefit-card" key={number}><div className="benefit-number">{number}</div><Icon className="benefit-icon" /><h3>{title}</h3><p>{body}</p><ArrowRight className="benefit-arrow" /></article>)}</div></section>
+      <section id="experience" className="benefits section container"><div className="section-kicker">[ 02 / YOUR ADVANTAGE ]</div><div className="section-heading compact"><h2>MORE THAN<br /><span>A COMPETITION.</span></h2><p>Leave with more than a result.<br />Leave with momentum.</p></div><div className="benefit-grid">{benefits.map(({ number, icon: Icon, title, body }) => <article className="benefit-card" key={number}><div className="benefit-number">{number}</div><Icon className="benefit-icon" /><h3>{title}</h3><p>{body}</p></article>)}</div></section>
 
       <section className="journey section"><div className="container"><div className="section-kicker">[ 03 / THE GAMEPLAN ]</div><div className="section-heading compact"><h2>MAKE YOUR<br /><span>MOVE.</span></h2><p>Four steps between you<br />and your moment.</p></div><div className="timeline">{steps.map(([num, title, body], i) => <div className="step" key={num}><div className="step-node">{num}</div><div className="step-content"><h3>{title}</h3><p>{body}</p></div>{i < steps.length - 1 && <div className="step-line" />}</div>)}</div></div></section>
 
