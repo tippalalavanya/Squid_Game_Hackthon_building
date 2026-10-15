@@ -23,7 +23,7 @@ const posterUrl = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image
 const registrationUrl = '#register'
 
 const benefits = [
-  { number: '01', icon: ClipboardCheck, title: 'Digital certificate', body: 'An online participation certificate for eligible participants, according to the event rules.' },
+  { number: '01', icon: ClipboardCheck, title: 'Digital certificate', body: 'An online participation certificate for eligible participants.' },
   { number: '02', icon: Trophy, title: 'The hall of fame', body: 'Winning projects and past winners can be showcased on the hackathon homepage.' },
   { number: '03', icon: Link, title: 'LinkedIn visibility', body: 'Opportunities to share the event and celebrate achievements through professional networks.' },
   { number: '04', icon: Code2, title: 'Build your portfolio', body: 'Demonstrate problem-solving, creativity, and technical skills through a project.' },
@@ -40,7 +40,7 @@ const faqs = [
   ['Who can participate?', 'College students can participate in the hackathon.'],
   ['How do I register?', 'Complete the official registration form to join the hackathon.'],
   ['What do I submit?', 'Submit any good idea that solves a meaningful problem or creates something useful.'],
-  ['Will I receive a certificate?', 'All participants will get a certificate, and winners will receive an additional certificate and prize.'],
+  ['Will I receive a certificate?', 'All participants will get a online certificate, and winners will receive an additional certificate and prize.'],
 ]
 
 export default function Page() {
@@ -117,7 +117,7 @@ export default function Page() {
 
       <section className="share section"><div className="container share-inner"><div><div className="section-kicker">[ 05 / BROADCAST ]</div><h2>BUILD IT.<br /><span>SHARE IT.</span><br />GET NOTICED.</h2></div><div className="share-copy"><p>Document the process. Share the breakthrough. Celebrate the achievement with your network.</p><a className="button button-outline" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fsquidgameshackathon.com" target="_blank" rel="noreferrer">Share on LinkedIn <Share2 size={16} /></a></div></div></section>
 
-      <section id="faq" className="faq section container"><div className="faq-heading"><div className="section-kicker">[ 06 / INTEL ]</div><h2>FREQUENTLY<br /><span>ASKED.</span></h2></div><div className="faq-list">{faqs.map(([question, answer], i) => <div className={`faq-item ${openFaq === i ? 'open' : ''}`} key={question}><button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}><span><b>0{i + 1}</b>{question}</span><ChevronDown /></button>{openFaq === i && <p>{answer}</p>}</div>)}</div></section>
+      <section id="faq" className="faq section container"><div className="faq-heading"><div className="section-kicker">[ 06 / INTEL ]</div><h2>FREQUENTLY<br /><span>ASKED.</span></h2></div><div className="faq-list">{faqs.map(([question, answer], i) => <div className={`faq-item ${openFaq === i ? 'open' : ''}`} key={question}><button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}><span><b>0{i + 1}</b>{question}</span><ChevronDown /></button>{openFaq === i && <p>{i === 1 ? <>Complete the official <a className="faq-registration-link" href={registrationUrl}><strong>registration</strong></a> form to join the hackathon.</> : answer}</p>}</div>)}</div></section>
 
       <section id="register" className="register section container"><div className="register-panel"><div className="section-kicker">[ FINAL CHECKPOINT / 07 ]</div><h2>YOUR MOVE.<br /><span>YOUR MOMENT.</span></h2><p>The arena is waiting. Bring your ideas, challenge yourself, and show what you can create.</p><a className="button button-primary button-large" href={registrationUrl}>Register now <ArrowRight size={20} /></a><div className="register-line" /></div></section>
 
