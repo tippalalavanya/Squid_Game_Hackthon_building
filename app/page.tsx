@@ -23,7 +23,7 @@ const posterUrl = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image
 const registrationUrl = '#register'
 
 const benefits = [
-  { number: '01', icon: ClipboardCheck, title: 'Digital certificate', body: 'An online participation certificate for eligible participants, according to the event rules.' },
+  { number: '01', icon: ClipboardCheck, title: 'Digital certificate', body: 'An online participation certificate for eligible participants.' },
   { number: '02', icon: Trophy, title: 'The hall of fame', body: 'Winning projects and past winners can be showcased on the hackathon homepage.' },
   { number: '03', icon: Link, title: 'LinkedIn visibility', body: 'Opportunities to share the event and celebrate achievements through professional networks.' },
   { number: '04', icon: Code2, title: 'Build your portfolio', body: 'Demonstrate problem-solving, creativity, and technical skills through a project.' },
