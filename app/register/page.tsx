@@ -58,9 +58,20 @@ export default function RegisterPage() {
     if (!supabase) return
     setLoading(true)
     setMessage('')
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setMessage('Enter a valid email address, for example name@gmail.com.')
+      setLoading(false)
+      return
+    }
+    if (password.length < 6) {
+      setMessage('Password must be at least 6 characters.')
+      setLoading(false)
+      return
+    }
 
     if (authMode === 'signup') {
-      const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+      const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: normalizedEmail, password }) })
       const result = await response.json()
       if (!response.ok) {
         setMessage(result.error ?? 'Unable to create the account right now. Try again.')
@@ -70,8 +81,8 @@ export default function RegisterPage() {
         else { setUser(data.user); setMessage('Account created and signed in. Choose your team path below.'); await refreshTeam(data.user) }
       }
     } else {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      if (error) setMessage('Unable to sign in. Check your email and password, then try again.')
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
+      if (error) setMessage(error.message.toLowerCase().includes('invalid login') ? 'Email or password is incorrect. If you have not created an account yet, switch to Sign up first.' : 'Unable to sign in right now. Please try again.')
       else {
         setUser(data.user)
         setMessage('Signed in. Choose your team path below.')
@@ -125,7 +136,7 @@ export default function RegisterPage() {
           <button type="button" className={authMode === 'signup' ? 'active' : ''} onClick={() => switchAuth('signup')}>Sign up</button>
         </div>
         <form onSubmit={authenticate} className="registration-form">
-            <label htmlFor="registration-email">Email address<input id="registration-email" required type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label>
+            <label htmlFor="registration-email">Email address<input id="registration-email" required type="email" autoComplete="email" placeholder="name@gmail.com" value={email} onChange={e => setEmail(e.target.value)} /></label>
             <label htmlFor="registration-password">Password<input id="registration-password" required type="password" minLength={6} placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} /></label>
             <button className="button button-primary button-large" disabled={loading}>{loading ? 'Working…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <LogIn size={18} /></button>
           </form>
