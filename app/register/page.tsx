@@ -4,6 +4,16 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Check, Copy, LogIn, Mail, ShieldCheck, Users, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+function getSignupMessage(error: { message?: string }) {
+  const message = error.message?.toLowerCase() ?? ''
+  if (message.includes('already') || message.includes('registered')) return 'This email is already registered. Switch to Sign in.'
+  if (message.includes('email_address_invalid') || message.includes('invalid email')) return 'Enter a real email address that can receive mail.'
+  if (message.includes('password') && (message.includes('weak') || message.includes('short'))) return 'Use a stronger password with at least 6 characters.'
+  if (message.includes('rate limit') || message.includes('too many')) return 'Too many attempts. Wait a few minutes, then try again.'
+  if (message.includes('not authorized') || message.includes('not_authorized')) return 'This email cannot receive mail from the current Supabase email provider. Use the project-authorized email or configure SMTP.'
+  return 'Unable to create the account right now. Check your email and password, then try again.'
+}
+
 export default function RegisterPage() {
   const [supabase] = useState(() => typeof window === 'undefined' ? null : createClient())
   const [user, setUser] = useState<any>(null)
@@ -59,7 +69,7 @@ export default function RegisterPage() {
         },
       })
       if (error) {
-        setMessage(error.message.toLowerCase().includes('already') ? 'This email is already registered. Switch to Sign in.' : 'Unable to create the account. Check the email and password, then try again.')
+        setMessage(getSignupMessage(error))
       } else if (data.session && data.user) {
         setUser(data.user)
         setMessage('Account created. Choose your team path below.')
@@ -83,7 +93,7 @@ export default function RegisterPage() {
     if (!supabase || !email.trim()) return
     setLoading(true)
     const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback` } })
-    setMessage(error ? 'We could not resend the email right now. Wait a moment and try again.' : 'Confirmation email resent. Check inbox, spam, and promotions folders.')
+    setMessage(error ? getSignupMessage(error) : 'Confirmation email resent. Check inbox, spam, and promotions folders.')
     setLoading(false)
   }
 
