@@ -9,7 +9,8 @@ export async function POST(request: Request) {
   const action = body.action === 'join' ? 'join_team' : 'create_team'
   const value = String(body.value ?? '').trim()
   if (!value) return NextResponse.json({ error: 'Enter a team name or team code.' }, { status: 400 })
-  const { data, error } = await supabase.rpc(action, action === 'create_team' ? { team_name: value } : { team_code: value })
+  const additionalMembers = Math.min(9, Math.max(0, Number(body.additionalMembers ?? 3)))
+  const { data, error } = await supabase.rpc(action, action === 'create_team' ? { team_name: value, additional_members: additionalMembers } : { team_code: value })
   if (error) return NextResponse.json({ error: error.message.replace('Error: ', '') }, { status: 400 })
   return NextResponse.json({ data })
 }
