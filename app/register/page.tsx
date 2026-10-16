@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
-import { Check, Copy, LogIn, ShieldCheck, Users, WalletCards } from 'lucide-react'
+import { Copy, LogIn, ShieldCheck, Users, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 function getSignupMessage(error: { message?: string }) {
@@ -19,7 +19,6 @@ export default function RegisterPage() {
   const [user, setUser] = useState<any>(null)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [mode, setMode] = useState<'create' | 'join'>('create')
-  const [signupComplete, setSignupComplete] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [value, setValue] = useState('')
@@ -51,7 +50,6 @@ export default function RegisterPage() {
 
   function switchAuth(nextMode: 'signin' | 'signup') {
     setAuthMode(nextMode)
-    setSignupComplete(false)
     setMessage('')
   }
 
@@ -68,12 +66,12 @@ export default function RegisterPage() {
         setMessage(result.error ?? 'Unable to create the account right now. Try again.')
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-        if (error || !data.user) setMessage('Account created, but automatic sign in failed. Switch to Sign in and use the same details.')
-        else { setUser(data.user); setMessage('Account created. Choose your team path below.') }
+        if (error || !data.user) setMessage('Account was created, but sign-in could not be completed. Check that the email and password are correct, then use Sign in.')
+        else { setUser(data.user); setMessage('Account created and signed in. Choose your team path below.'); await refreshTeam(data.user) }
       }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      if (error) setMessage(error.message.toLowerCase().includes('confirm') ? 'Confirm your email before signing in.' : 'Unable to sign in. Check your email and password.')
+      if (error) setMessage('Unable to sign in. Check your email and password, then try again.')
       else {
         setUser(data.user)
         setMessage('Signed in. Choose your team path below.')
@@ -126,23 +124,11 @@ export default function RegisterPage() {
           <button type="button" className={authMode === 'signin' ? 'active' : ''} onClick={() => switchAuth('signin')}>Sign in</button>
           <button type="button" className={authMode === 'signup' ? 'active' : ''} onClick={() => switchAuth('signup')}>Sign up</button>
         </div>
-        {signupComplete ? (
-          <div className="signup-confirmation">
-            <Check size={28} />
-            <h2>Account created.</h2>
-            <p>Your participant account is ready. Continue to create or join a team below.</p>
-            <div className="confirmation-actions">
-              <button type="button" className="button button-primary" onClick={() => switchAuth('signin')}>Continue to sign in <LogIn size={17} /></button>
-              <button type="button" className="button button-outline" onClick={() => switchAuth('signin')}>Go to sign in</button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={authenticate} className="registration-form">
+        <form onSubmit={authenticate} className="registration-form">
             <label htmlFor="registration-email">Email address<input id="registration-email" required type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label>
             <label htmlFor="registration-password">Password<input id="registration-password" required type="password" minLength={6} placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} /></label>
             <button className="button button-primary button-large" disabled={loading}>{loading ? 'Working…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <LogIn size={18} /></button>
           </form>
-        )}
         {message && <p className="form-message">{message}</p>}
       </div>
     </main>
