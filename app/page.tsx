@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 const posterUrl = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-Ir0No5qW3qMeWPFARPLBAUmbuWeHyb.png'
-const registrationUrl = '#register'
+const registrationUrl = '/register'
 
 const benefits = [
   { number: '01', icon: ClipboardCheck, title: 'Digital certificate', body: 'An online participation certificate for eligible participants.' },
