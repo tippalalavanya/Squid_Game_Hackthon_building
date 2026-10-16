@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
-import { Check, Copy, LogIn, Mail, ShieldCheck, Users, WalletCards } from 'lucide-react'
+import { Check, Copy, LogIn, ShieldCheck, Users, WalletCards } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 function getSignupMessage(error: { message?: string }) {
@@ -62,21 +62,14 @@ export default function RegisterPage() {
     setMessage('')
 
     if (authMode === 'signup') {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (error) {
-        setMessage(getSignupMessage(error))
-      } else if (data.session && data.user) {
-        setUser(data.user)
-        setMessage('Account created. Choose your team path below.')
+      const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+      const result = await response.json()
+      if (!response.ok) {
+        setMessage(result.error ?? 'Unable to create the account right now. Try again.')
       } else {
-        setSignupComplete(true)
-        setMessage('Confirmation email requested. Check your inbox and spam folder.')
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+        if (error || !data.user) setMessage('Account created, but automatic sign in failed. Switch to Sign in and use the same details.')
+        else { setUser(data.user); setMessage('Account created. Choose your team path below.') }
       }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
@@ -87,14 +80,6 @@ export default function RegisterPage() {
         await refreshTeam(data.user)
       }
     }
-    setLoading(false)
-  }
-
-  async function resendConfirmation() {
-    if (!supabase || !email.trim()) return
-    setLoading(true)
-    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback` } })
-    setMessage(error ? getSignupMessage(error) : 'Confirmation email resent. Check inbox, spam, and promotions folders.')
     setLoading(false)
   }
 
@@ -144,10 +129,10 @@ export default function RegisterPage() {
         {signupComplete ? (
           <div className="signup-confirmation">
             <Check size={28} />
-            <h2>Check your inbox.</h2>
-            <p>We requested a confirmation link for <strong>{email}</strong>. Check spam and promotions too.</p>
+            <h2>Account created.</h2>
+            <p>Your participant account is ready. Continue to create or join a team below.</p>
             <div className="confirmation-actions">
-              <button type="button" className="button button-primary" onClick={resendConfirmation} disabled={loading}>{loading ? 'Resending…' : 'Resend email'} <Mail size={17} /></button>
+              <button type="button" className="button button-primary" onClick={() => switchAuth('signin')}>Continue to sign in <LogIn size={17} /></button>
               <button type="button" className="button button-outline" onClick={() => switchAuth('signin')}>Go to sign in</button>
             </div>
           </div>
