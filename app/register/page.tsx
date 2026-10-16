@@ -104,8 +104,14 @@ export default function RegisterPage() {
     setMessage('')
     const response = await fetch('/api/registration/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: mode, value }) })
     const result = await response.json()
-    setMessage(result.error ?? 'Team saved.')
-    if (response.ok) { setValue(''); await refreshTeam() }
+    if (!response.ok) {
+      setMessage(result.error ?? 'Unable to save the team.')
+    } else {
+      setValue('')
+      if (result.data) setTeam(result.data)
+      setMessage(mode === 'create' ? 'Team created. Share the code with your teammates.' : 'You joined the team. Complete your registration details next.')
+      await refreshTeam()
+    }
     setLoading(false)
   }
 
