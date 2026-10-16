@@ -105,7 +105,17 @@ export default function RegisterPage() {
     const response = await fetch('/api/registration/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: mode, value }) })
     const result = await response.json()
     if (!response.ok) {
-      setMessage(result.error ?? 'Unable to save the team.')
+      const errorCode = String(result.error ?? '')
+      if (errorCode === 'already_on_team') {
+        await refreshTeam()
+        setMessage('You are already on a team. Your existing team is shown below; share its code with teammates instead of joining again.')
+      } else if (errorCode === 'team_not_found') {
+        setMessage('That team code was not found. Check the code and try again.')
+      } else if (errorCode === 'team_full') {
+        setMessage('This team is full. Ask the leader for another team code.')
+      } else {
+        setMessage('We could not join this team. Check the invitation code and try again.')
+      }
     } else {
       setValue('')
       if (result.data) setTeam(result.data)
@@ -171,6 +181,7 @@ export default function RegisterPage() {
           </>
         ) : (
           <>
+          <section className="existing-team-notice"><strong>You are already registered with a team.</strong><span>Use the code below to invite teammates. You do not need to join again.</span></section>
           <section className="team-invite-panel"><div><span className="status-pill"><ShieldCheck size={14} /> Team created</span><h2>{team.name}</h2><p>Step 1 is complete. Copy this code and send it to every teammate. They must choose Join a team and enter this code.</p></div><button className="code-chip" onClick={() => navigator.clipboard.writeText(team.code)}>{team.code} <Copy size={14} /></button></section>
           <section className="member-registration"><div className="section-kicker">[ STEP 01 / YOUR DETAILS ]</div><h2>Register yourself.</h2><p className="registration-lede">Share the team code above now. Your teammates can join while you complete your own details.</p><form onSubmit={completeProfile} className="registration-form"><label>Full name<input required value={profile.fullName} onChange={e => setProfile({ ...profile, fullName: e.target.value })} placeholder="Enter your name" /></label><label>College / university<input required value={profile.college} onChange={e => setProfile({ ...profile, college: e.target.value })} placeholder="Enter your college" /></label><label>Phone number<input required type="tel" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="Enter your phone number" /></label><button className="button button-primary button-large" disabled={loading}>{loading ? 'Saving…' : 'Save registration details'}</button></form></section><section className="invite-roster"><div className="section-kicker">[ STEP 02 / TEAMMATES ]</div><h3>Build your team.</h3><p>Teammates appear here automatically after they join. Each teammate must complete their details and pay individually.</p><button type="button" className="button button-outline roster-refresh" onClick={() => refreshTeam()} disabled={loading}>Refresh teammate list</button><div className="member-list">{members.map(member => <article className="member-row" key={member.id}><div><strong>{member.full_name || (member.user_id === user.id ? 'You' : 'Participant')}</strong><span>{member.role === 'leader' ? 'Team leader' : 'Team member'}</span></div><div className="member-status">{member.registration_status === 'complete' ? 'Details complete' : 'Details pending'}</div></article>)}</div></section><section className="team-dashboard"><div className="team-header"><div><span className="status-pill"><ShieldCheck size={14} /> Team active</span><h2>{team.name}</h2><p>Share this code with your teammates.</p></div><button className="code-chip" onClick={() => navigator.clipboard.writeText(team.code)}>{team.code} <Copy size={14} /></button></div><div className="member-list">{members.map(member => { const paid = member.registration_payments?.[0]?.status === 'paid'; const isYou = member.user_id === user.id; return <article className="member-row" key={member.id}><div><strong>{member.full_name || (isYou ? 'You' : 'Participant')}</strong><span>{member.role === 'leader' ? 'Team leader' : 'Team member'}</span></div><div className="member-status">{member.registration_status === 'complete' ? <><Check size={15} /> Form complete</> : <span>Form incomplete</span>}{paid ? <><Check size={15} /> Payment verified</> : isYou ? <button className="pay-button" onClick={() => pay(member.id)} disabled={loading}><WalletCards size={13} /> Pay registration fee</button> : <span>Payment pending</span>}</div></article> })}</div><div className="team-note"><ShieldCheck size={18} /> The team is fully registered only after every member completes their form and has a verified payment.</div></section>
           </>
