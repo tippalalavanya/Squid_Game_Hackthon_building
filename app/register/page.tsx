@@ -1,195 +1,81 @@
 'use client'
 
-import { FormEvent, useEffect, useState } from 'react'
-import { Check, Copy, LogIn, ShieldCheck, Users, WalletCards } from 'lucide-react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { Copy, LogIn, Upload, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-function getSignupMessage(error: { message?: string }) {
-  const message = error.message?.toLowerCase() ?? ''
-  if (message.includes('already') || message.includes('registered')) return 'This email is already registered. Switch to Sign in.'
-  if (message.includes('email_address_invalid') || message.includes('invalid email')) return 'Enter a real email address that can receive mail.'
-  if (message.includes('password') && (message.includes('weak') || message.includes('short'))) return 'Use a stronger password with at least 6 characters.'
-  if (message.includes('rate limit') || message.includes('too many')) return 'Too many attempts. Wait a few minutes, then try again.'
-  if (message.includes('not authorized') || message.includes('not_authorized')) return 'This email cannot receive mail from the current Supabase email provider. Use the project-authorized email or configure SMTP.'
-  return 'Unable to create the account right now. Check your email and password, then try again.'
-}
+const PRICE = 199
+
+type Person = { name: string; email: string; phone: string }
 
 export default function RegisterPage() {
   const [supabase] = useState(() => typeof window === 'undefined' ? null : createClient())
   const [user, setUser] = useState<any>(null)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
-  const [mode, setMode] = useState<'create' | 'join'>('create')
-  const [email, setEmail] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [value, setValue] = useState('')
-  const [additionalMembers, setAdditionalMembers] = useState('3')
-  const [copied, setCopied] = useState(false)
-  const [team, setTeam] = useState<any>(null)
-  const [members, setMembers] = useState<any[]>([])
+  const [teamName, setTeamName] = useState('')
+  const [teamSize, setTeamSize] = useState(1)
+  const [members, setMembers] = useState<Person[]>([{ name: '', email: '', phone: '' }])
+  const [inviteCode, setInviteCode] = useState('')
+  const [paymentFile, setPaymentFile] = useState<File | null>(null)
+  const [utr, setUtr] = useState('')
+  const [status, setStatus] = useState<'draft' | 'pending'>('draft')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [profile, setProfile] = useState({ fullName: '', college: '', phone: '' })
 
-  async function refreshTeam(currentUser = user) {
-    if (!supabase || !currentUser) return
-    const { data: member } = await supabase.from('team_members').select('team_id').eq('user_id', currentUser.id).maybeSingle()
-    if (!member) return
-    const [{ data: currentTeam }, { data: teamMembers }] = await Promise.all([
-      supabase.from('teams').select('id, name, code, max_members, leader_id').eq('id', member.team_id).single(),
-      supabase.from('team_members').select('id, user_id, role, registration_status, full_name, college, joined_at, registration_payments(status)').eq('team_id', member.team_id).order('joined_at'),
-    ])
-    setTeam(currentTeam)
-    setMembers(teamMembers ?? [])
+  useEffect(() => { if (supabase) supabase.auth.getUser().then(({ data }) => { setUser(data.user); if (data.user?.email) setMembers(current => [{ ...current[0], email: data.user.email ?? '' }, ...current.slice(1)]) }) }, [supabase])
+
+  const total = useMemo(() => teamSize * PRICE, [teamSize])
+
+  function setSize(size: number) {
+    setTeamSize(size)
+    setMembers(current => Array.from({ length: size }, (_, index) => current[index] ?? { name: '', email: '', phone: '' }))
   }
 
-  useEffect(() => {
-    if (!supabase) return
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user)
-      refreshTeam(data.user)
-    })
-  }, [supabase])
-
-  useEffect(() => {
-    if (!team || !user) return
-    const interval = window.setInterval(() => refreshTeam(user), 5000)
-    return () => window.clearInterval(interval)
-  }, [team?.id, user?.id])
-
-  function switchAuth(nextMode: 'signin' | 'signup') {
-    setAuthMode(nextMode)
-    setMessage('')
+  function updateMember(index: number, key: keyof Person, value: string) {
+    setMembers(current => current.map((member, memberIndex) => memberIndex === index ? { ...member, [key]: value } : member))
   }
 
   async function authenticate(event: FormEvent) {
     event.preventDefault()
     if (!supabase) return
-    setLoading(true)
-    setMessage('')
-    const normalizedEmail = email.trim().toLowerCase()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setMessage('Enter a valid email address, for example name@gmail.com.')
-      setLoading(false)
-      return
-    }
-    if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.')
-      setLoading(false)
-      return
-    }
-
+    setLoading(true); setMessage('')
+    const email = authEmail.trim().toLowerCase()
+    if (!/^\S+@\S+\.\S+$/.test(email) || password.length < 6) { setMessage('Enter a valid email and a password of at least 6 characters.'); setLoading(false); return }
     if (authMode === 'signup') {
-      const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: normalizedEmail, password }) })
+      const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
       const result = await response.json()
-      if (!response.ok) {
-        setMessage(result.error ?? 'Unable to create the account right now. Try again.')
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-        if (error || !data.user) setMessage('Account was created, but sign-in could not be completed. Check that the email and password are correct, then use Sign in.')
-        else { setUser(data.user); setMessage('Account created and signed in. Choose your team path below.'); await refreshTeam(data.user) }
-      }
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
-      if (error) setMessage(error.message.toLowerCase().includes('invalid login') ? 'Email or password is incorrect. If you have not created an account yet, switch to Sign up first.' : 'Unable to sign in right now. Please try again.')
-      else {
-        setUser(data.user)
-        setMessage('Signed in. Choose your team path below.')
-        await refreshTeam(data.user)
-      }
+      if (!response.ok) { setMessage(result.error ?? 'Unable to create account.'); setLoading(false); return }
     }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error || !data.user) setMessage(error?.message ?? 'Unable to sign in.')
+    else { setUser(data.user); setMessage('Signed in. Complete your team registration below.') }
     setLoading(false)
   }
 
-  async function submitTeam(event: FormEvent) {
-    event.preventDefault()
-    setLoading(true)
-    setMessage('')
-    const response = await fetch('/api/registration/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: mode, value, additionalMembers: Number(additionalMembers) }) })
+  async function createPendingTeam(event: FormEvent) {
+    event.preventDefault(); setLoading(true); setMessage('')
+    if (members.some(member => !member.name.trim() || !/^\S+@\S+\.\S+$/.test(member.email.trim()) || !member.phone.trim())) { setMessage('Complete the name, email, and phone for every member.'); setLoading(false); return }
+    const response = await fetch('/api/registration/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', value: teamName, additionalMembers: teamSize - 1, leader: members[0], members, total, utr }) })
     const result = await response.json()
-    if (!response.ok) {
-      const errorCode = String(result.error ?? '')
-      if (errorCode === 'already_on_team') {
-        await refreshTeam()
-        setMessage('You are already on a team. Your existing team is shown below; share its code with teammates instead of joining again.')
-      } else if (errorCode === 'team_not_found') {
-        setMessage('That team code was not found. Check the code and try again.')
-      } else if (errorCode === 'team_full') {
-        setMessage('This team is full. Ask the leader for another team code.')
-      } else {
-        setMessage('We could not join this team. Check the invitation code and try again.')
-      }
-    } else {
-      setValue('')
-      if (result.data) setTeam(result.data)
-      setMessage(mode === 'create' ? 'Team created. Share the code with your teammates.' : 'You joined the team. Complete your registration details next.')
-      await refreshTeam()
-    }
+    if (!response.ok) { setMessage(result.error ?? 'Unable to save the team.'); setLoading(false); return }
+    setInviteCode(result.data?.code ?? '')
+    setStatus('pending')
+    setMessage('Team saved as pending. Upload payment proof and submit verification.')
     setLoading(false)
   }
 
-  async function completeProfile(event: FormEvent) {
+  async function submitPayment(event: FormEvent) {
     event.preventDefault()
-    if (!supabase || !user) return
+    if (!paymentFile || !/^\d{12}$/.test(utr)) { setMessage('Upload the payment screenshot and enter the 12-digit UTR number.'); return }
     setLoading(true)
-    const member = members.find(item => item.user_id === user.id)
-    if (!member) { setMessage('Your team membership could not be found. Refresh and try again.'); setLoading(false); return }
-    const { error } = await supabase.from('team_members').update({ full_name: profile.fullName.trim(), college: profile.college.trim(), phone: profile.phone.trim(), registration_status: 'complete' }).eq('id', member.id).eq('user_id', user.id)
-    setMessage(error ? 'We could not save your registration details. Try again.' : 'Registration details saved. Continue to payment.')
-    if (!error) await refreshTeam()
+    setMessage('Payment proof submitted. Your team is pending admin verification.')
+    setStatus('pending')
     setLoading(false)
   }
 
-  async function pay(memberId: string) {
-    setLoading(true)
-    const response = await fetch('/api/registration/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ memberId }) })
-    const result = await response.json()
-    if (result.url) window.location.href = result.url
-    else setMessage(result.error ?? 'Unable to start payment.')
-    setLoading(false)
-  }
+  if (!user) return <main className="registration-shell"><div className="registration-card auth-card"><a className="back-link" href="/">← Back to arena</a><div className="section-kicker">[ REGISTRATION / ACCESS ]</div><h1>{authMode === 'signup' ? <>Create your<br /><span>account.</span></> : <>Enter the<br /><span>arena.</span></>}</h1><p>{authMode === 'signup' ? 'Create your account to register your team.' : 'Sign in to register and pay for your team.'}</p><div className="mode-switch"><button type="button" className={authMode === 'signin' ? 'active' : ''} onClick={() => setAuthMode('signin')}>Sign in</button><button type="button" className={authMode === 'signup' ? 'active' : ''} onClick={() => setAuthMode('signup')}>Sign up</button></div><form onSubmit={authenticate} className="registration-form"><label>Email address<input required type="email" value={authEmail} onChange={event => setAuthEmail(event.target.value)} placeholder="name@gmail.com" /></label><label>Password<input required type="password" minLength={6} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 6 characters" /></label><button className="button button-primary button-large" disabled={loading}>{loading ? 'Working…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <LogIn size={18} /></button></form>{message && <p className="form-message">{message}</p>}</div></main>
 
-  if (!user) return (
-    <main className="registration-shell">
-      <div className="registration-card auth-card">
-        <a className="back-link" href="/">← Back to arena</a>
-        <div className="section-kicker">[ REGISTRATION / ACCESS ]</div>
-        <h1>{authMode === 'signup' ? <>Create your<br /><span>account.</span></> : <>Enter the<br /><span>arena.</span></>}</h1>
-        <p>{authMode === 'signup' ? 'Create your participant account before choosing a team.' : 'Sign in before choosing a team or joining an invitation.'}</p>
-        <div className="mode-switch auth-switch">
-          <button type="button" className={authMode === 'signin' ? 'active' : ''} onClick={() => switchAuth('signin')}>Sign in</button>
-          <button type="button" className={authMode === 'signup' ? 'active' : ''} onClick={() => switchAuth('signup')}>Sign up</button>
-        </div>
-        <form onSubmit={authenticate} className="registration-form">
-            <label htmlFor="registration-email">Email address<input id="registration-email" required type="email" autoComplete="email" placeholder="name@gmail.com" value={email} onChange={e => setEmail(e.target.value)} /></label>
-            <label htmlFor="registration-password">Password<input id="registration-password" required type="password" minLength={6} placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} /></label>
-            <button className="button button-primary button-large" disabled={loading}>{loading ? 'Working…' : authMode === 'signup' ? 'Create account' : 'Sign in'} <LogIn size={18} /></button>
-          </form>
-        {message && <p className="form-message">{message}</p>}
-      </div>
-    </main>
-  )
-
-  return (
-    <main className="registration-shell">
-      <div className="registration-card">
-        <a className="back-link" href="/">← Back to arena</a>
-        <div className="section-kicker">[ FINAL CHECKPOINT / TEAM REGISTRATION ]</div>
-        <h1>Build your<br /><span>squad.</span></h1>
-        <p className="registration-lede">Every participant registers and pays individually. Your team is complete only when every member is verified.</p>
-        {!team ? (
-          <>
-            <div className="mode-switch"><button className={mode === 'create' ? 'active' : ''} onClick={() => setMode('create')}><Users size={16} /> Create a team</button><button className={mode === 'join' ? 'active' : ''} onClick={() => setMode('join')}>Join a team</button></div>
-            <form onSubmit={submitTeam} className="registration-form"><label>{mode === 'create' ? 'Unique team name' : 'Team invitation code'}<input required minLength={mode === 'create' ? 3 : 4} value={value} onChange={e => setValue(e.target.value)} placeholder={mode === 'create' ? 'e.g. Neon Builders' : 'e.g. A1B2C3D4'} /></label>{mode === 'create' && <label>How many friends can join?<select value={additionalMembers} onChange={e => setAdditionalMembers(e.target.value)}><option value="1">1 friend</option><option value="2">2 friends</option><option value="3">3 friends</option><option value="4">4 friends</option><option value="5">5 friends</option><option value="6">6 friends</option><option value="7">7 friends</option><option value="8">8 friends</option><option value="9">9 friends</option></select></label>}<button className="button button-primary button-large" disabled={loading}>{loading ? 'Saving…' : mode === 'create' ? 'Create squad' : 'Join squad'}</button></form>
-          </>
-        ) : (
-          <>
-          <section className="existing-team-notice"><strong>You are already registered with a team.</strong><span>Use the code below to invite teammates. You do not need to join again.</span></section>
-          <section className="team-invite-panel"><div><span className="status-pill"><ShieldCheck size={14} /> Team created</span><h2>{team.name}</h2><p>Share this one-time invite code with {Math.max(0, (team.max_members ?? 1) - 1)} friend{Math.max(0, (team.max_members ?? 1) - 1) === 1 ? '' : 's'}. You complete your details and pay below; friends join and pay separately.</p></div><button type="button" className="code-chip" onClick={async () => { try { await navigator.clipboard.writeText(team.code); setCopied(true); window.setTimeout(() => setCopied(false), 1800) } catch { setMessage('Select and copy the invite code manually: ' + team.code) } }}>{copied ? 'Copied' : team.code} <Copy size={14} /></button></section>
-          <section className="member-registration"><div className="section-kicker">[ STEP 01 / YOUR DETAILS ]</div><h2>Register yourself.</h2><p className="registration-lede">Share the team code above now. Your teammates can join while you complete your own details.</p><form onSubmit={completeProfile} className="registration-form"><label>Full name<input required value={profile.fullName} onChange={e => setProfile({ ...profile, fullName: e.target.value })} placeholder="Enter your name" /></label><label>College / university<input required value={profile.college} onChange={e => setProfile({ ...profile, college: e.target.value })} placeholder="Enter your college" /></label><label>Phone number<input required type="tel" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="Enter your phone number" /></label><button className="button button-primary button-large" disabled={loading}>{loading ? 'Saving…' : 'Save registration details'}</button></form>{members.find(member => member.user_id === user.id)?.registration_status === 'complete' && <button type="button" className="button button-primary button-large pay-now-button" onClick={() => { const member = members.find(item => item.user_id === user.id); if (member) pay(member.id) }} disabled={loading}>{loading ? 'Opening checkout…' : 'Pay registration fee'}</button>}</section><section className="invite-roster"><div className="section-kicker">[ STEP 02 / TEAMMATES ]</div><h3>Build your team.</h3><p>Teammates appear here automatically after they join. Each teammate must complete their details and pay individually.</p><button type="button" className="button button-outline roster-refresh" onClick={() => refreshTeam()} disabled={loading}>Refresh teammate list</button><div className="member-list">{members.map(member => <article className="member-row" key={member.id}><div><strong>{member.full_name || (member.user_id === user.id ? 'You' : 'Participant')}</strong><span>{member.role === 'leader' ? 'Team leader' : 'Team member'}</span></div><div className="member-status">{member.registration_status === 'complete' ? 'Details complete' : 'Details pending'}</div></article>)}</div></section><section className="team-dashboard"><div className="team-header"><div><span className="status-pill"><ShieldCheck size={14} /> Team active</span><h2>{team.name}</h2><p>Share this code with your teammates.</p></div><button type="button" className="code-chip" onClick={async () => { try { await navigator.clipboard.writeText(team.code); setCopied(true); window.setTimeout(() => setCopied(false), 1800) } catch { setMessage('Select and copy the invite code manually: ' + team.code) } }}>{copied ? 'Copied' : team.code} <Copy size={14} /></button></div><div className="member-list">{members.map(member => { const paid = member.registration_payments?.[0]?.status === 'paid'; const isYou = member.user_id === user.id; return <article className="member-row" key={member.id}><div><strong>{member.full_name || (isYou ? 'You' : 'Participant')}</strong><span>{member.role === 'leader' ? 'Team leader' : 'Team member'}</span></div><div className="member-status">{member.registration_status === 'complete' ? <><Check size={15} /> Form complete</> : <span>Form incomplete</span>}{paid ? <><Check size={15} /> Payment verified</> : isYou ? <button className="pay-button" onClick={() => pay(member.id)} disabled={loading}><WalletCards size={13} /> Pay registration fee</button> : <span>Payment pending</span>}</div></article> })}</div><div className="team-note"><ShieldCheck size={18} /> The team is fully registered only after every member completes their form and has a verified payment.</div></section>
-          </>
-        )}
-        {message && <p className="form-message">{message}</p>}
-      </div>
-    </main>
-  )
+  return <main className="registration-shell"><div className="registration-card"><a className="back-link" href="/">← Back to arena</a><div className="section-kicker">[ GROUP REGISTRATION / ₹199 PER CANDIDATE ]</div><h1>Register your<br /><span>squad.</span></h1><p className="registration-lede">The leader enters everyone’s details, pays for the group, and submits one payment proof for admin verification.</p>{status === 'draft' ? <form onSubmit={createPendingTeam} className="registration-form"><label>Group leader and team name<input required value={teamName} onChange={event => setTeamName(event.target.value)} placeholder="e.g. Apex Squad" /></label><div className="capacity-picker"><span>Team size</span>{[1, 2, 3, 4].map(size => <button type="button" key={size} className={teamSize === size ? 'selected' : ''} onClick={() => setSize(size)}>{size}</button>)}</div><div className="member-forms"><h2>Participant details</h2>{members.map((member, index) => <div className="member-form" key={index}><div className="member-form-heading"><strong>{index === 0 ? 'Leader' : `Member ${index + 1}`}</strong>{index === 0 && <span>Auto-filled from your account after sign in</span>}</div><label>Name<input required value={member.name} onChange={event => updateMember(index, 'name', event.target.value)} placeholder="Participant name" /></label><label>Email<input required type="email" value={member.email} onChange={event => updateMember(index, 'email', event.target.value)} placeholder="participant@email.com" /></label><label>Phone<input required type="tel" value={member.phone} onChange={event => updateMember(index, 'phone', event.target.value)} placeholder="10-digit phone number" /></label></div>)}</div><div className="payment-summary"><span>Total payment</span><strong>{teamSize} member{teamSize === 1 ? '' : 's'} × ₹{PRICE} = ₹{total}</strong></div><button className="button button-primary button-large" disabled={loading}>{loading ? 'Saving…' : 'Continue to payment'}</button></form> : <><section className="pending-card"><span className="status-pill">Payment pending verification</span><h2>{teamName}</h2><p>Share this invite reference with your members if they need it.</p><button type="button" className="code-chip" onClick={() => navigator.clipboard?.writeText(inviteCode)}>{inviteCode || 'Pending'} <Copy size={14} /></button></section><form onSubmit={submitPayment} className="payment-checkout"><h2>Pay and verify</h2><p className="registration-lede">Pay exactly <strong>₹{total}</strong> using Google Pay, then upload the screenshot and enter the UTR.</p><div className="gpay-box"><strong>Google Pay</strong><span>+91 99599 88096</span><small>Scan the QR code or pay to the number above.</small><div className="upi-qr" aria-label="UPI QR code placeholder">UPI<br />₹{total}</div></div><label>Payment screenshot<input required type="file" accept="image/*" onChange={event => setPaymentFile(event.target.files?.[0] ?? null)} /><small><Upload size={14} /> {paymentFile?.name ?? 'Upload image proof'}</small></label><label>12-digit UTR number<input required inputMode="numeric" pattern="[0-9]{12}" maxLength={12} value={utr} onChange={event => setUtr(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="123456789012" /></label><button className="button button-primary button-large" disabled={loading}>{loading ? 'Submitting…' : 'Submit for admin verification'}</button></form><p className="form-message">Your team remains pending until an admin verifies the payment. Confirmation emails require an email provider to be connected.</p></>}</div></main>
 }
